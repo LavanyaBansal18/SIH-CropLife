@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CropLife Dashboard</title>
+<style>
+  body { font-family: "Segoe UI", sans-serif; background:#f3f7f2; margin:0; display:flex;}
+  header { background:linear-gradient(90deg,#27ae60,#145a32); color:white; padding:1.5rem; text-align:center; }
+  .sidebar { width:230px; background:linear-gradient(180deg,#145a32,#196f3d); color:white; height:100vh; padding:1rem; }
+  .sidebar h2 { font-size:1.6rem; margin-bottom:1rem; text-align:center; font-weight:bold;}
+  .sidebar a { display:block; color:white; padding:0.8rem; text-decoration:none; border-radius:8px; margin-bottom:0.5rem; font-weight:500;}
+  .sidebar a:hover { background:#27ae60;}
+  .container { flex:1; padding:2rem; }
+  .card { background:#ffffff; padding:1.5rem; margin:1rem 0; border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.1); transition:transform 0.2s;}
+  .card:hover { transform:translateY(-3px);}
+  .status { font-weight:bold; padding:0.4rem 0.7rem; border-radius:8px; color:white; box-shadow:0 0 10px rgba(0,0,0,0.3);}
+  .good { background:green; box-shadow:0 0 12px green;}
+  .medium { background:orange; box-shadow:0 0 12px orange;}
+  .critical { background:red; box-shadow:0 0 12px red;}
+  .progress-bar { height:20px; border-radius:10px; background:#ddd; overflow:hidden; margin:0.5rem 0;}
+  .progress { height:100%; background:green; width:0; transition:width 0.6s ease;}
+  .alert { background:#e74c3c; color:white; padding:0.7rem; border-radius:6px; margin:0.5rem 0;}
+  .success { background:#27ae60; }
+  .gauge { font-size:1.1rem; margin:0.3rem 0; }
+  table { width:100%; border-collapse:collapse; margin-top:1rem; border-radius:8px; overflow:hidden;}
+  th, td { border:1px solid #ccc; padding:0.6rem; text-align:center;}
+  th { background:#145a32; color:white;}
+  select, button, input[type="radio"] { padding:0.5rem; margin:0.3rem;}
+  button { background:#145a32; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:500;}
+  button:hover { background:#27ae60;}
+  .toggle { margin:0.5rem 0;}
+  .refresh-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #27ae60, #145a32);
+    color: white;
+    padding: 0.6rem 0.9rem;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.2s ease-in-out;
+  }
+  .refresh-btn:hover {
+    transform: scale(1.1);
+    background: linear-gradient(135deg, #145a32, #0b3d1f);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>🌱 CropLife</h2>
+  <a href="#" onclick="showHome()">🏠 Home</a>
+  <a href="#" onclick="selectChamber(1)">Chamber 1</a>
+  <a href="#" onclick="selectChamber(2)">Chamber 2</a>
+  <a href="#" onclick="selectChamber(3)">Chamber 3</a>
+  <a href="#" onclick="selectChamber(4)">Chamber 4</a>
+</div>
+
+<div class="container">
+  <header><h1>CropLife- Smart Storage Dashboard</h1></header>
+
+  <!-- Home Page -->
+  <div id="homePage" class="card">
+    <h2>System Overview</h2>
+    <div id="alertsBox"></div>
+    <h3>Chamber Overview</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Chamber</th>
+          <th>Crop</th>
+          <th>Mass (kg)</th>
+          <th>Temperature (°C)</th>
+          <th>Humidity (%)</th>
+          <th>Shelf Life</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="overviewTable"></tbody>
+    </table>
+  </div>
+
+  <!-- Chamber Details -->
+  <div id="chamberDetails" class="card" style="display:none;">
+    <h2 id="chamberTitle">Chamber Details</h2>
+    <div>
+      <label>Crop Type:</label>
+      <select id="cropSelect" onchange="assignCrop()">
+        <option value="">--Select Crop--</option>
+        <option value="Tomato">Tomato</option>
+        <option value="Apple">Apple</option>
+        <option value="Potato">Potato</option>
+        <option value="Mango">Mango</option>
+        <option value="Banana">Banana</option>
+        <option value="Onion">Onion</option>
+        <option value="Cabbage">Cabbage</option>
+        <option value="Wheat">Wheat</option>
+        <option value="Rice">Rice</option>
+        <option value="Corn">Corn</option>
+      </select>
+    </div>
+    <p>Mass: <span id="mass">0</span> kg</p>
+    
+    <div class="toggle">
+      <label><input type="radio" name="tempMode" value="auto" checked onchange="changeMode()"> Auto Temp</label>
+      <label><input type="radio" name="tempMode" value="manual" onchange="changeMode()"> Manual Temp</label>
+    </div>
+    
+    <p>Temperature: <span id="temperature" class="gauge">25</span>°C 
+      <button id="manualBtn" onclick="manualTemp()" style="display:none;">Set Temp</button>
+    </p>
+    
+    <p>Humidity: <span id="humidity" class="gauge">60</span>%</p>
+    <p>Ethylene: <span id="ethylene">0.5</span> ppm</p>
+    <p>Shelf Life: <span id="shelfLifeDays">10 days</span>
+      <div class="progress-bar"><div id="shelfProgress" class="progress"></div></div>
+    </p>
+    <p>Status: <span id="status" class="status good">Good</span></p>
+    <br>
+    <button onclick="showHome()">⬅ Back to Home</button>
+  </div>
+</div>
+
+<!-- Refresh Button -->
+<button class="refresh-btn" onclick="refreshData()" title="Refresh Data">🔄</button>
+
+<script>
+// Crop database with typical ranges
+const cropDB = {
+  Tomato: {temp:[18,25], hum:[65,85], shelf:7},
+  Apple: {temp:[0,4], hum:[90,95], shelf:60},
+  Potato: {temp:[7,10], hum:[85,95], shelf:90},
+  Mango: {temp:[10,13], hum:[85,90], shelf:14},
+  Banana: {temp:[13,15], hum:[85,95], shelf:7},
+  Onion: {temp:[0,4], hum:[65,70], shelf:120},
+  Cabbage: {temp:[0,2], hum:[90,95], shelf:60},
+  Wheat: {temp:[20,25], hum:[50,60], shelf:180},
+  Rice: {temp:[20,25], hum:[50,60], shelf:180},
+  Corn: {temp:[0,4], hum:[90,95], shelf:30}
+};
+
+// Initialize chambers
+let chambers = {
+  1: {crop:'Tomato', mass:5, temp:22, hum:75, eth:0.5, shelf:7, status:'good', mode:'auto'},
+  2: {crop:'Apple', mass:8, temp:3, hum:92, eth:0.3, shelf:60, status:'good', mode:'auto'},
+  3: {crop:'Potato', mass:12, temp:9, hum:88, eth:0.2, shelf:90, status:'good', mode:'auto'},
+  4: {crop:'Mango', mass:6, temp:12, hum:87, eth:0.6, shelf:14, status:'good', mode:'auto'}
+};
+
+let currentChamber = null;
+
+// ================= HOME PAGE =================
+function updateHome(){
+  const alertsBox = document.getElementById('alertsBox');
+  alertsBox.innerHTML = '';
+  let alerts = [];
+
+  const table = document.getElementById('overviewTable');
+  table.innerHTML = '';
+
+  for(let c in chambers){
+    const chamber = chambers[c];
+    let row = `<tr>
+      <td>${c}</td>
+      <td>${chamber.crop || '-'}</td>
+      <td>${chamber.mass}</td>
+      <td>${chamber.temp.toFixed(1)}</td>
+      <td>${chamber.hum.toFixed(1)}</td>
+      <td>${chamber.shelf} days</td>
+      <td><span class="status ${chamber.status}">${capitalize(chamber.status)}</span></td>
+    </tr>`;
+    table.innerHTML += row;
+
+    if(chamber.status === 'critical'){
+      alerts.push(`⚠ Chamber ${c} crop is in critical condition!`);
+    }
+  }
+
+  if(alerts.length === 0){
+    alertsBox.innerHTML = `<div class="alert success">No alerts, crops in good condition ✅</div>`;
+  } else {
+    alerts.forEach(a=>{
+      alertsBox.innerHTML += `<div class="alert">${a}</div>`;
+    });
+  }
+}
+
+// ================= CHAMBER =================
+function selectChamber(num){
+  currentChamber = num;
+  document.getElementById('homePage').style.display='none';
+  document.getElementById('chamberDetails').style.display='block';
+  updateChamberDetails();
+}
+
+function showHome(){
+  document.getElementById('homePage').style.display='block';
+  document.getElementById('chamberDetails').style.display='none';
+  currentChamber=null;
+  updateHome();
+}
+
+function updateChamberDetails(){
+  const c = chambers[currentChamber];
+  document.getElementById('chamberTitle').innerText = `Chamber ${currentChamber} Details`;
+  document.getElementById('cropSelect').value = c.crop;
+  document.getElementById('mass').innerText = c.mass;
+  document.getElementById('temperature').innerText = c.temp.toFixed(1);
+  document.getElementById('humidity').innerText = c.hum.toFixed(1);
+  document.getElementById('ethylene').innerText = c.eth.toFixed(2);
+  document.getElementById('shelfLifeDays').innerText = `${c.shelf} days`;
+  document.getElementById('shelfProgress').style.width = Math.min(c.shelf,100)+'%';
+  document.getElementById('status').innerText = capitalize(c.status);
+  document.getElementById('status').className = 'status '+c.status;
+
+  let radios = document.getElementsByName('tempMode');
+  radios.forEach(r=> r.checked = (r.value===c.mode));
+  document.getElementById('manualBtn').style.display = (c.mode==='manual')?'inline-block':'none';
+}
+
+function assignCrop(){
+  const crop = document.getElementById('cropSelect').value;
+  if(chambers[currentChamber].mass>0){
+    alert("❌ Cannot reassign crop until chamber is empty!");
+    document.getElementById('cropSelect').value = chambers[currentChamber].crop;
+    return;
+  }
+  chambers[currentChamber].crop = crop;
+  chambers[currentChamber].mass = 5; 
+  let db = cropDB[crop];
+  chambers[currentChamber].temp = (db.temp[0]+db.temp[1])/2;
+  chambers[currentChamber].hum = (db.hum[0]+db.hum[1])/2;
+  chambers[currentChamber].shelf = db.shelf;
+  chambers[currentChamber].status = 'good';
+  updateChamberDetails();
+  alert(`✅ Crop ${crop} assigned to Chamber ${currentChamber}`);
+}
+
+function changeMode(){
+  let mode = document.querySelector('input[name="tempMode"]:checked').value;
+  chambers[currentChamber].mode = mode;
+  document.getElementById('manualBtn').style.display = (mode==='manual')?'inline-block':'none';
+
+  if(mode==='auto'){
+    let db = cropDB[chambers[currentChamber].crop];
+    if(db){
+      chambers[currentChamber].temp = (db.temp[0]+db.temp[1])/2;
+    }
+    updateChamberDetails();
+  }
+}
+
+function manualTemp(){
+  let temp = prompt("Enter new temperature:");
+  temp = parseFloat(temp);
+  if(isNaN(temp)) return;
+  let crop = chambers[currentChamber].crop;
+  if(crop && cropDB[crop]){
+    let [minT,maxT] = cropDB[crop].temp;
+    if(temp<minT || temp>maxT){
+      alert(`❌ Cannot set temperature. Safe range for ${crop} is ${minT}-${maxT}°C`);
+      return;
+    }
+  }
+  chambers[currentChamber].temp = temp;
+  updateChamberDetails();
+  alert(`Temperature set manually to ${temp}°C`);
+}
+
+function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+// ================= REFRESH =================
+function refreshData(){
+  for(let c in chambers){
+    if(chambers[c].crop){
+      let db = cropDB[chambers[c].crop];
+      chambers[c].temp = +(db.temp[0] + Math.random()*(db.temp[1]-db.temp[0])).toFixed(1);
+      chambers[c].hum = +(db.hum[0] + Math.random()*(db.hum[1]-db.hum[0])).toFixed(1);
+      chambers[c].eth = +(0.2+Math.random()*1.5).toFixed(2);
+      chambers[c].shelf = Math.max(1, Math.floor(Math.random()*db.shelf));
+      chambers[c].status = 'good';
+    }
+  }
+
+  let damaged = Math.floor(Math.random()*4)+1;
+  if(chambers[damaged].crop){
+    chambers[damaged].status = 'critical';
+    chambers[damaged].shelf = 0;
+  }
+
+  updateHome();
+  if(currentChamber) updateChamberDetails();
+}
+updateHome();
+</script>
+</body>
+</html>
